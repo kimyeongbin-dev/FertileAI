@@ -6,3 +6,6 @@
 
 *.png binary
 *.xlsx binary
+
+# 노트북은 분석 기록이므로 언어 통계에서 문서로 취급
+*.ipynb linguist-documentation
