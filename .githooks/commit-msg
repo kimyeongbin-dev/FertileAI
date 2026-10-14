@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# 커밋 메시지 컨벤션 검사 — 규칙: CONTRIBUTING.md 2장
+set -euo pipefail
+. "$(dirname "$0")/_common.sh"
+
+# 주석 줄과 `git commit -v` 의 diff 영역은 검사하지 않음
+msg="$(sed -e '/^# -* >8 -*$/,$d' -e '/^#/d' "$1")"
+subject="$(printf '%s\n' "$msg" | sed -n '1p')"
+
+fail() {
+  printf '\n✖ 커밋 거부: %s\n  첫 줄: %s\n  규칙: CONTRIBUTING.md 2장\n\n' "$1" "$subject" >&2
+  exit 1
+}
+
+if printf '%s\n' "$msg" | grep -qiE "$AI_TRAILER_PATTERN"; then
+  fail "AI 트레일러는 커밋에 넣지 않습니다"
+fi
+
+# git 이 만드는 메시지와 로컬 임시 커밋은 통과 (임시 커밋은 pre-push 가 main/dev 에서 차단)
+case "$subject" in "Merge "* | "Revert \""*) exit 0 ;; esac
+if printf '%s' "$subject" | grep -qiE "$TEMP_COMMIT_PATTERN"; then exit 0; fi
+
+types='feat|fix|refactor|perf|style|test|docs|build|ci|chore|revert'
+printf '%s' "$subject" | grep -qE "^($types)(\([a-z0-9-]+\))?!?: [^ ]" \
+  || fail "형식은 <type>(<scope>): <요약> 입니다. type: ${types//|/, }"
+[ "${#subject}" -le 50 ] || fail "요약이 ${#subject}자입니다. 50자 이내로 줄여 주세요"
+case "$subject" in *.) fail "요약 끝에 마침표를 찍지 않습니다" ;; esac
+[ -z "$(printf '%s\n' "$msg" | sed -n '2p')" ] || fail "요약과 본문 사이에 빈 줄이 필요합니다"
