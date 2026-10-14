@@ -1,0 +1,8 @@
+# 모든 텍스트 파일 LF로 저장
+* text=auto eol=lf
+
+# 노트북은 줄 단위 병합이 무의미하므로 diff만 텍스트로
+*.ipynb text eol=lf -merge
+
+*.png binary
+*.xlsx binary
