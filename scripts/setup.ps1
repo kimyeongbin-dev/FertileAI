@@ -1,4 +1,4 @@
-# 클론 직후 1회 실행: Git 훅 연결 + 실행 환경 확인
+﻿# 클론 직후 1회 실행: Git 훅 연결 + 실행 환경 확인
 $ErrorActionPreference = 'Stop'
 Set-Location (git rev-parse --show-toplevel)
 
