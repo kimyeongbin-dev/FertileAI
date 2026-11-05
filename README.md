@@ -101,20 +101,21 @@ flowchart LR
 
 ### 실험 흐름 (DACON 제출 기록 기준)
 
-| 단계 | 방법 | 코드 | CV AUC | Public LB |
-|---|---|---|---|---|
-| 1 | LightGBM 단일 모델 | `src/train_baseline.py` | - | 0.7403 |
-| 2 | CatBoost 단일 모델 | `src/train_baseline.py` | - | 0.7416 |
-| 3 | CatBoost 6 : LightGBM 4 앙상블 | `src/train_baseline.py` | - | 0.7416 |
-| 4 | 3 + OpenFE 자동 피처 + 피처 선택(상위 50개) | `src/train_baseline.py` | - | 0.7406 |
-| 5 | AutoGluon `best_quality` (WeightedEnsemble_L2) | `src/train.py`* | 0.7409 | 0.7420 |
-| 6 | **5의 모델 4개 가중 평균** | `src/predict_improved.py` | 0.7409 | **0.74204** |
-| 7 | 수동 L2 스태킹 + seed bagging (재현 실험) | `experiments/custom/` | 0.7406 | 0.7419 |
+| 단계 | 제출일 | 방법 | 코드 | CV AUC | Public LB |
+|---|---|---|---|---|---|
+| 1 | 03-14 | LightGBM 단일 모델 | `src/train_baseline.py` | 기록 없음 | 0.7403 |
+| 2 | 03-14 | CatBoost 단일 모델 | `src/train_baseline.py` | 기록 없음 | 0.7416 |
+| 3 | 03-15 | CatBoost 6 : LightGBM 4 앙상블 | `src/train_baseline.py` | 기록 없음 | 0.7416 |
+| 4 | 03-16 | AutoGluon `best_quality` (WeightedEnsemble_L2) | `src/train.py`* | 0.7409 | 0.7420 |
+| 5 | 03-18 | 3 + OpenFE 자동 피처 + 피처 선택(상위 50개) | `src/train_baseline.py` | 상승 (수치 기록 없음) | 0.7406 |
+| 6 | 03-18 | **4의 모델 중 4개 가중 평균** | `src/predict_improved.py` | 기록 없음 | **0.74204** |
+| 7 | 03-19 | 수동 L2 스태킹 + seed bagging (재현 실험) | `experiments/custom/` | 0.7406** | 0.7419 |
 
 - 최종 점수 0.74203은 6단계 제출(0.7420370)의 리더보드 표기값입니다.
 - \* 대회 당시 학습은 데이터·출력 경로만 다른 이전 버전으로 실행했고, 학습 설정은 같습니다.
-- 5단계 이후로는 모델 구성을 바꿔도 Public LB가 0.7419~0.7420에 머물렀습니다 (아래 분석 참고).
-- 7단계는 AutoGluon이 내부에서 하는 일(fold 단위 전처리, OOF 스태킹)을 직접 구현해 거의 같은 점수를 재현한 실험입니다. 설계와 회고는 [`experiments/custom/docs/retrospective.md`](experiments/custom/docs/retrospective.md)에 있습니다.
+- \*\* 메타모델을 학습한 같은 OOF로 계산한 값입니다. 원본 로그는 삭제되어 회고에 옮겨 적은 수치만 남아 있습니다.
+- AutoGluon(4단계) 이후 모델 구성을 바꾼 6·7단계의 Public LB는 0.7419–0.7420에 머물렀습니다 (아래 분석 참고).
+- 7단계는 2026-03-18부터 03-19까지 대회 기간에 진행했습니다. AutoGluon이 내부에서 하는 일(fold 단위 전처리, OOF 스태킹)을 직접 구현해 거의 같은 점수를 재현한 실험입니다. 설계와 회고는 [`experiments/custom/docs/retrospective.md`](experiments/custom/docs/retrospective.md)에 있습니다.
 
 ### AutoGluon 모델별 검증 점수 (`results/autogluon/leaderboard.csv`)
 
@@ -131,9 +132,11 @@ flowchart LR
 
 ## 한계점 및 분석
 
-### 1. 피처 생성·선택을 CV 밖에서 수행
+### 1. 자동 생성 변수의 과적합
 
-베이스라인은 OpenFE 피처 생성과 중요도 기반 피처 선택을 CV로 나누기 전에 전체 train의 타깃으로 수행했습니다. 검증 fold의 정답이 피처를 고르는 데 이미 쓰였으므로 CV가 낙관적으로 나옵니다. 실제로 이 조합을 더한 4단계는 Public LB가 3단계보다 0.001 낮았습니다. 이후 재현 실험(7단계)에서는 전처리 통계를 fold 안에서만 fit하도록 설계했습니다.
+3단계 앙상블에서 자동 생성 변수(OpenFE)와 피처 선택만 더하고 나머지는 그대로 두어 비교했습니다(5단계). 학습 데이터로 검증한 CV는 올랐지만(수치 기록 없음) Public LB는 0.7416에서 0.7406으로 떨어져 과적합으로 판단했고, 최종 제출에는 자동 생성 변수를 쓰지 않았습니다.
+
+코드를 보면 OpenFE 피처 생성과 중요도 기반 피처 선택을 CV로 나누기 전에 전체 train의 타깃으로 수행합니다. 검증 fold의 정답이 피처를 고르는 데 이미 쓰였으므로 CV가 낙관적으로 나옵니다. 이후 재현 실험(7단계)에서는 전처리 통계를 fold 안에서만 fit하도록 설계했습니다.
 
 ### 2. 학습 데이터로 계산한 리더보드·피처 중요도
 
@@ -141,7 +144,7 @@ AutoGluon 스크립트는 리더보드와 피처 중요도를 학습 데이터(`
 
 ### 3. 최고점 제출의 개선 폭
 
-6단계는 5단계 모델 중 4개를 손으로 정한 가중치로 평균한 제출입니다. Public LB는 0.00002 높았지만 CV는 같아서, 의미 있는 개선이라기보다 노이즈 범위의 차이로 봅니다.
+6단계는 4단계 모델 중 4개를 손으로 정한 가중치로 평균한 제출입니다. Public LB는 0.00002 높았지만 이 제출의 CV 기록이 없어 CV로 확인한 개선은 아니며, 노이즈 범위의 차이로 봅니다.
 
 ### 배운 점
 
@@ -171,7 +174,7 @@ Claude Code를 페어 프로그래밍 도구로 활용해, 대회 중에는 학�
 
 ### 데이터 준비
 
-대회 규정상 원본 데이터는 레포에 포함하지 않습니다. [DACON 대회 페이지](https://dacon.io)에서 `train.csv`, `test.csv`를 받아 레포 루트의 `data/`에 둡니다. 베이스라인 스크립트와 노트북은 대회 당시 경로인 `datasets/`를 읽으므로, 이들을 실행할 때는 같은 파일을 `datasets/`에도 복사합니다.
+대회 규정상 원본 데이터는 레포에 포함하지 않습니다. [DACON 대회 페이지](https://dacon.io/competitions/official/236687/)에서 `train.csv`, `test.csv`를 받아 레포 루트의 `data/`에 둡니다. 베이스라인 스크립트와 노트북은 대회 당시 경로인 `datasets/`를 읽으므로, 이들을 실행할 때는 같은 파일을 `datasets/`에도 복사합니다.
 
 ### 설치
 
